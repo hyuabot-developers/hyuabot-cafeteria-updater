@@ -1,5 +1,6 @@
 import asyncio
 
+import requests
 from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
@@ -14,10 +15,12 @@ async def main():
     session = session_constructor()
     if session is None:
         raise RuntimeError("Failed to get db session")
-    job_list = []
+    urls = []
     restaurant_query = select([Restaurant.restaurant_id])
     for restaurant_id, in session.execute(restaurant_query):
-        job_list.append(get_menu_data(session, restaurant_id))
+        urls.append((restaurant_id, f"https://www.hanyang.ac.kr/web/www/re{restaurant_id}"))
+    responses = [(restaurant_id, requests.get(url)) for restaurant_id, url in urls]
+    job_list = [get_menu_data(session, restaurant_id, response) for restaurant_id, response in responses]
     await asyncio.gather(*job_list)
     session.close()
 
