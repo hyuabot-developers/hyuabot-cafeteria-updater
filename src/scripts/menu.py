@@ -3,7 +3,7 @@ from requests import Response
 from sqlalchemy import delete, insert
 from sqlalchemy.orm import Session
 
-from models.cafeteria import Menu
+from models import Menu
 
 
 async def get_menu_data(db_session: Session, restaurant_id: int, response: Response) -> None:
@@ -18,7 +18,7 @@ async def get_menu_data(db_session: Session, restaurant_id: int, response: Respo
                 menu_items.append(dict(
                     restaurant_id=restaurant_id,
                     time_type=title,
-                    menu=menu,
+                    menu=str(menu).strip(),
                     menu_price=p,
                 ))
     db_session.execute(delete(Menu).where(Menu.restaurant_id == restaurant_id))
