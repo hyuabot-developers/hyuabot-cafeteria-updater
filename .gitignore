@@ -1,3 +1,4 @@
 .idea/
 venv/
 *.pyc
+src/hyuabot_cafeteria_updater.egg-info/
