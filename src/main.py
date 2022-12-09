@@ -25,7 +25,7 @@ async def main():
             urls.append((restaurant_id, f"https://www.hanyang.ac.kr/web/www/re{restaurant_id}", day))
     responses = [(restaurant_id, requests.get(
         f"{url}?p_p_id=foodView_WAR_foodportlet&_foodView_WAR_foodportlet_sFoodDateYear={day.year}"
-        f"&_foodView_WAR_foodportlet_sFoodDateMonth={day.month - 1}&_foodView_WAR_foodportlet_sFoodDateDay={day.day}"
+        f"&_foodView_WAR_foodportlet_sFoodDateMonth={day.month - 1}&_foodView_WAR_foodportlet_sFoodDateDay={day.day}",
     ), day) for restaurant_id, url, day in urls]
     job_list = [get_menu_data(session, restaurant_id, response, day) for restaurant_id, response, day in responses]
     await asyncio.gather(*job_list)
