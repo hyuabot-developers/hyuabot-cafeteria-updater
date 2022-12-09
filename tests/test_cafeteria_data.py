@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta, date
 
 import pytest
 import requests
@@ -40,17 +41,25 @@ class TestFetchRealtimeData:
         session = session_constructor()
         # Get list to fetch
         urls = []
+        now = datetime.now()
         restaurant_query = select(Restaurant.restaurant_id)
         for restaurant_id, in session.execute(restaurant_query):
-            urls.append((restaurant_id, f"https://www.hanyang.ac.kr/web/www/re{restaurant_id}"))
-        responses = [(restaurant_id, requests.get(url)) for restaurant_id, url in urls]
-        job_list = [get_menu_data(session, restaurant_id, response) for restaurant_id, response in responses]
+            for day_delta in range(-5, 5):
+                day = now + timedelta(days=day_delta)
+                urls.append((restaurant_id, f"https://www.hanyang.ac.kr/web/www/re{restaurant_id}", day))
+        responses = [(restaurant_id, requests.get(
+            f"{url}?p_p_id=foodView_WAR_foodportlet&_foodView_WAR_foodportlet_sFoodDateYear={day.year}"
+            f"&_foodView_WAR_foodportlet_sFoodDateMonth={day.month - 1}"
+            f"&_foodView_WAR_foodportlet_sFoodDateDay={day.day}",
+        ), day) for restaurant_id, url, day in urls]
+        job_list = [get_menu_data(session, restaurant_id, response, day) for restaurant_id, response, day in responses]
         await asyncio.gather(*job_list)
 
         # Check if the data is inserted
         menu_list = session.query(Menu).all()
         for menu_item in menu_list:  # type: Menu
             assert type(menu_item.restaurant_id) == int
+            assert type(menu_item.feed_date) == date
             assert type(menu_item.time_type) == str
-            assert type(menu_item.menu) == str
+            assert type(menu_item.menu_food) == str
             assert type(menu_item.menu_price) == str

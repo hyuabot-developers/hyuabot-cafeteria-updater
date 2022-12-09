@@ -2,3 +2,7 @@
 venv/
 *.pyc
 src/hyuabot_cafeteria_updater.egg-info/
+
+.eggs/
+
+.python-version

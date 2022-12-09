@@ -1,12 +1,14 @@
+import datetime
+
 from bs4 import BeautifulSoup
 from requests import Response
-from sqlalchemy import delete, insert
+from sqlalchemy import delete, insert, and_
 from sqlalchemy.orm import Session
 
 from models import Menu
 
 
-async def get_menu_data(db_session: Session, restaurant_id: int, response: Response) -> None:
+async def get_menu_data(db_session: Session, restaurant_id: int, response: Response, day: datetime.datetime) -> None:
     menu_items: list[dict] = []
     soup = BeautifulSoup(response.text, "html.parser")
     for inbox in soup.find_all("div", {"class": "in-box"}):
@@ -17,11 +19,15 @@ async def get_menu_data(db_session: Session, restaurant_id: int, response: Respo
                 p = list_item.find("p", {"class": "price"}).text
                 menu_items.append(dict(
                     restaurant_id=restaurant_id,
+                    feed_date=day.strftime("%Y-%m-%d"),
                     time_type=title,
-                    menu=str(menu).strip(),
+                    menu_food=str(menu).strip(),
                     menu_price=p,
                 ))
-    db_session.execute(delete(Menu).where(Menu.restaurant_id == restaurant_id))
+    db_session.execute(delete(Menu).where(and_(
+        Menu.restaurant_id == restaurant_id,
+        Menu.feed_date == day.strftime("%Y-%m-%d"),
+    )))
     if menu_items:
         insert_statement = insert(Menu).values(menu_items)
         db_session.execute(insert_statement)

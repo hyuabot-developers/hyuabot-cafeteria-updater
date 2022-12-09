@@ -1,3 +1,5 @@
+import datetime
+
 from sqlalchemy import ForeignKey, String, Double, PrimaryKeyConstraint
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
 
@@ -24,9 +26,10 @@ class Restaurant(BaseModel):
 class Menu(BaseModel):
     __tablename__ = 'menu'
     __table_args__ = (
-        PrimaryKeyConstraint('restaurant_id', 'menu'),
+        PrimaryKeyConstraint('restaurant_id', 'feed_date', 'time_type', 'menu_food'),
     )
     restaurant_id: Mapped[int] = mapped_column(ForeignKey('restaurant.restaurant_id'), nullable=False)
+    feed_date: Mapped[datetime.date] = mapped_column(nullable=False)
     time_type: Mapped[str] = mapped_column(String(10), nullable=False)
-    menu: Mapped[str] = mapped_column(String(100), nullable=False)
+    menu_food: Mapped[str] = mapped_column(String(400), nullable=False)
     menu_price: Mapped[str] = mapped_column(String(20), nullable=False)
