@@ -12,7 +12,7 @@ async def get_menu_data(
         db_session: Session,
         restaurant_id: int,
         response: Response,
-        day: datetime.datetime
+        day: datetime.datetime,
 ) -> None:
     menu_items: list[dict] = []
     soup = BeautifulSoup(response.text, "html.parser")
