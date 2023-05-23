@@ -31,11 +31,11 @@ async def get_menu_data(
                 )
                 if menu_item not in menu_items:
                     menu_items.append(menu_item)
-    db_session.execute(delete(Menu).where(and_(
-        Menu.restaurant_id == restaurant_id,
-        Menu.feed_date == day.strftime("%Y-%m-%d"),
-    )))
     if menu_items:
+        db_session.execute(delete(Menu).where(and_(
+            Menu.restaurant_id == restaurant_id,
+            Menu.feed_date == day.strftime("%Y-%m-%d"),
+        )))
         insert_statement = insert(Menu).values(menu_items)
         db_session.execute(insert_statement)
     db_session.commit()
