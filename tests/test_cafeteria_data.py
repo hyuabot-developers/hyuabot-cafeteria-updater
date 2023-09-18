@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, date
+from typing import Optional
 
 import pytest
 import requests
@@ -15,9 +16,9 @@ from utils.database import get_db_engine
 
 
 class TestFetchRealtimeData:
-    connection: Engine | None = None
+    connection: Optional[Engine] = None
     session_constructor = None
-    session: Session | None = None
+    session: Optional[Session] = None
 
     @classmethod
     def setup_class(cls):
