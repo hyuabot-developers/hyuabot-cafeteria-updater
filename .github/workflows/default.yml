@@ -5,10 +5,10 @@ jobs:
     runs-on: ["self-hosted", "X64"]
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python 3.11
+    - name: Set up Python 3.9
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11"
+        python-version: "3.9"
     - name: Install dependencies
       env:
         REQUIREMENTS_FILE: lint
@@ -29,10 +29,10 @@ jobs:
     runs-on: ["self-hosted", "X64"]
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python 3.11
+    - name: Set up Python 3.9
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11"
+        python-version: "3.9"
     - name: Install dependencies
       env:
         REQUIREMENTS_FILE: typecheck
@@ -69,10 +69,10 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
     - uses: actions/checkout@v3
-    - name: Set up Python 3.11
+    - name: Set up Python 3.9
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11"
+        python-version: "3.9"
     - name: Install dependencies
       env:
         REQUIREMENTS_FILE: test
