@@ -17,17 +17,25 @@ async def get_menu_data(
     menu_items: list[dict] = []
     soup = BeautifulSoup(response.text, "html.parser")
     for inbox in soup.find_all("div", {"class": "in-box"}):
-        title = inbox.find("h4").text.strip()
-        for list_item in inbox.find_all("li"):
-            if list_item.find("h3"):
-                menu = list_item.find("h3").text.replace("\t", "").replace("\r\n", "")
-                p = list_item.find("p", {"class": "price"}).text
+        title = inbox.find_next("h4")
+        if not title:
+            continue
+        title = title.text.strip()
+        for list_item in inbox.find_all_next("li"):
+            if list_item.find_next("h3"):
+                menu = list_item.find_next("h3")
+                if not menu:
+                    continue
+                menu = menu.text.replace("\t", "").replace("\r\n", "")
+                p = list_item.find_next("p", {"class": "price"})
+                if not p:
+                    continue
                 menu_item = dict(
                     restaurant_id=restaurant_id,
                     feed_date=day.strftime("%Y-%m-%d"),
                     time_type=title,
                     menu_food=str(menu).strip(),
-                    menu_price=p,
+                    menu_price=p.text.strip(),
                 )
                 if menu_item not in menu_items:
                     menu_items.append(menu_item)
