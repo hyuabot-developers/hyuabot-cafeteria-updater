@@ -70,6 +70,7 @@ async def execute_script(session):
                     f"&_foodView_WAR_foodportlet_sFoodDateMonth={day.month - 1}"
                     f"&_foodView_WAR_foodportlet_sFoodDateDay={day.day}",
                 )
+                response.raise_for_status()
                 responses.append((restaurant_id, response, day))
             except ChunkedEncodingError:
                 pass

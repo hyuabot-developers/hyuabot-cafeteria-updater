@@ -27,7 +27,7 @@ async def insert_cafeteria_data(db_session: Session):
         dict(restaurant_id=1, restaurant_name="학생식당", campus_id=1, latitude=0, longitude=0),
         dict(restaurant_id=2, restaurant_name="생활과학관식당", campus_id=1, latitude=0, longitude=0),
         dict(restaurant_id=4, restaurant_name="신소재공학관 식당", campus_id=1, latitude=0, longitude=0),
-        dict(restaurant_id=5, restaurant_name="제1생활관 식당", campus_id=1, latitude=0, longitude=0),
+        dict(restaurant_id=6, restaurant_name="제1생활관 식당", campus_id=1, latitude=0, longitude=0),
         dict(restaurant_id=7, restaurant_name="제2생활관 식당", campus_id=1, latitude=0, longitude=0),
         dict(restaurant_id=8, restaurant_name="행원파크", campus_id=1, latitude=0, longitude=0),
         dict(restaurant_id=11, restaurant_name="교직원식당", campus_id=2, latitude=0, longitude=0),
