@@ -59,8 +59,8 @@ class TestFetchRealtimeData:
         # Check if the data is inserted
         menu_list = session.query(Menu).all()
         for menu_item in menu_list:  # type: Menu
-            assert type(menu_item.restaurant_id) == int
-            assert type(menu_item.feed_date) == date
-            assert type(menu_item.time_type) == str
-            assert type(menu_item.menu_food) == str
-            assert type(menu_item.menu_price) == str
+            assert isinstance(menu_item.restaurant_id, int)
+            assert isinstance(menu_item.feed_date, date)
+            assert isinstance(menu_item.time_type, str)
+            assert isinstance(menu_item.menu_food, str)
+            assert isinstance(menu_item.menu_price, str)
