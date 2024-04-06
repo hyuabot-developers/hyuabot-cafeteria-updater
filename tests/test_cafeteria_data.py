@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, date
+from typing import Optional
 
 import pytest
 import requests
@@ -7,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from main import HTTPSAdapter
 from models import BaseModel
 from models import Restaurant, Menu
 from scripts.menu import get_menu_data
@@ -15,9 +17,9 @@ from utils.database import get_db_engine
 
 
 class TestFetchRealtimeData:
-    connection: Engine | None = None
+    connection: Optional[Engine] = None
     session_constructor = None
-    session: Session | None = None
+    session: Optional[Session] = None
 
     @classmethod
     def setup_class(cls):
@@ -47,19 +49,21 @@ class TestFetchRealtimeData:
             for day_delta in range(-5, 5):
                 day = now + timedelta(days=day_delta)
                 urls.append((restaurant_id, f"https://www.hanyang.ac.kr/web/www/re{restaurant_id}", day))
-        responses = [(restaurant_id, requests.get(
-            f"{url}?p_p_id=foodView_WAR_foodportlet&_foodView_WAR_foodportlet_sFoodDateYear={day.year}"
-            f"&_foodView_WAR_foodportlet_sFoodDateMonth={day.month - 1}"
-            f"&_foodView_WAR_foodportlet_sFoodDateDay={day.day}",
-        ), day) for restaurant_id, url, day in urls]
+        with requests.Session() as request_session:
+            request_session.mount("https://", HTTPSAdapter())
+            responses = [(restaurant_id, request_session.get(
+                f"{url}?p_p_id=foodView_WAR_foodportlet&_foodView_WAR_foodportlet_sFoodDateYear={day.year}"
+                f"&_foodView_WAR_foodportlet_sFoodDateMonth={day.month - 1}"
+                f"&_foodView_WAR_foodportlet_sFoodDateDay={day.day}",
+            ), day) for restaurant_id, url, day in urls]
         job_list = [get_menu_data(session, restaurant_id, response, day) for restaurant_id, response, day in responses]
         await asyncio.gather(*job_list)
 
         # Check if the data is inserted
         menu_list = session.query(Menu).all()
         for menu_item in menu_list:  # type: Menu
-            assert type(menu_item.restaurant_id) == int
-            assert type(menu_item.feed_date) == date
-            assert type(menu_item.time_type) == str
-            assert type(menu_item.menu_food) == str
-            assert type(menu_item.menu_price) == str
+            assert isinstance(menu_item.restaurant_id, int)
+            assert isinstance(menu_item.feed_date, date)
+            assert isinstance(menu_item.time_type, str)
+            assert isinstance(menu_item.menu_food, str)
+            assert isinstance(menu_item.menu_price, str)
