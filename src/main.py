@@ -60,8 +60,9 @@ async def execute_script(session):
                 day,
             ))
     responses = []
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     with requests.Session() as request_session:
-        request_session.mount("https://", HTTPSAdapter())
+        # request_session.mount("https://", HTTPSAdapter())
         for restaurant_id, url, day in urls:
             try:
                 response = request_session.get(
@@ -69,6 +70,7 @@ async def execute_script(session):
                     f"&_foodView_WAR_foodportlet_sFoodDateYear={day.year}"
                     f"&_foodView_WAR_foodportlet_sFoodDateMonth={day.month - 1}"
                     f"&_foodView_WAR_foodportlet_sFoodDateDay={day.day}",
+                    verify=False,
                 )
                 response.raise_for_status()
                 responses.append((restaurant_id, response, day))
