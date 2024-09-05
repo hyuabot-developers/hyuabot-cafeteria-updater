@@ -21,7 +21,8 @@ async def get_menu_data(
         if not title:
             continue
         title = title.text.strip()
-        for list_item in inbox.find_all_next("li"):
+        title_soup = BeautifulSoup(str(inbox), "html.parser")
+        for list_item in title_soup.find_all("li", {"class": "span3"}):
             if list_item.find_next("h3"):
                 menu = list_item.find_next("h3")
                 if not menu:
