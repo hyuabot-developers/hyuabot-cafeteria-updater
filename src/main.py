@@ -7,14 +7,11 @@ import urllib3
 from requests.adapters import HTTPAdapter
 from requests.exceptions import ChunkedEncodingError
 from sqlalchemy import select
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from models import Restaurant
-from scripts.menu import get_menu_data
+from scripts.menu import get_menu_data, delete_duplicate
 from utils.database import get_db_engine
-
-from utils.database import get_master_db_engine
 
 
 class HTTPSAdapter(HTTPAdapter):
@@ -36,15 +33,7 @@ async def main():
     session = session_constructor()
     if session is None:
         raise RuntimeError("Failed to get db session")
-    try:
-        await execute_script(session)
-    except OperationalError:
-        connection = get_master_db_engine()
-        session_constructor = sessionmaker(bind=connection)
-        session = session_constructor()
-        if session is None:
-            raise RuntimeError("Failed to get db session")
-        await execute_script(session)
+    await execute_script(session)
 
 
 async def execute_script(session):
@@ -81,6 +70,8 @@ async def execute_script(session):
         for restaurant_id, response, day in responses
     ]
     await asyncio.gather(*job_list)
+    for restaurant_id, url, day in urls:
+        await delete_duplicate(session, restaurant_id, day)
     session.close()
 
 if __name__ == '__main__':
