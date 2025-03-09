@@ -14,8 +14,6 @@ from models import Restaurant
 from scripts.menu import get_menu_data
 from utils.database import get_db_engine
 
-from utils.database import get_master_db_engine
-
 
 class HTTPSAdapter(HTTPAdapter):
     def init_poolmanager(self, connections, maxsize, block=False, **kwargs):
@@ -36,15 +34,7 @@ async def main():
     session = session_constructor()
     if session is None:
         raise RuntimeError("Failed to get db session")
-    try:
-        await execute_script(session)
-    except OperationalError:
-        connection = get_master_db_engine()
-        session_constructor = sessionmaker(bind=connection)
-        session = session_constructor()
-        if session is None:
-            raise RuntimeError("Failed to get db session")
-        await execute_script(session)
+    await execute_script(session)
 
 
 async def execute_script(session):
