@@ -32,4 +32,4 @@ class Menu(BaseModel):
     feed_date: Mapped[datetime.date] = mapped_column(nullable=False)
     time_type: Mapped[str] = mapped_column(String(10), nullable=False)
     menu_food: Mapped[str] = mapped_column(String(400), nullable=False)
-    menu_price: Mapped[str] = mapped_column(String(20), nullable=False)
+    menu_price: Mapped[str] = mapped_column(String(30), nullable=False)

@@ -2,7 +2,7 @@ import datetime
 
 from bs4 import BeautifulSoup
 from requests import Response
-from sqlalchemy import delete, insert, and_
+from sqlalchemy import select, delete, insert, and_
 from sqlalchemy.orm import Session
 
 from models import Menu
@@ -48,3 +48,41 @@ async def get_menu_data(
         insert_statement = insert(Menu).values(menu_items)
         db_session.execute(insert_statement)
     db_session.commit()
+
+
+async def delete_duplicate(
+    db_session: Session,
+    restaurant_id: int,
+    day: datetime.datetime,
+) -> None:
+    menu_query = select(Menu.feed_date, Menu.time_type, Menu.menu_food).where(
+        Menu.restaurant_id == restaurant_id,
+        Menu.feed_date == day.strftime("%Y-%m-%d"),
+    )
+    menu_items = {}
+    for feed_date, time_type, menu_food in db_session.execute(menu_query):
+        if menu_food not in menu_items:
+            menu_items[menu_food] = [time_type]
+        else:
+            menu_items[menu_food].append(time_type)
+    deleted_items = 0
+    for menu_food, time_types in menu_items.items():
+        if len(time_types) == 1:
+            continue
+        elif "석식" in time_types:
+            db_session.execute(delete(Menu).where(and_(
+                Menu.restaurant_id == restaurant_id,
+                Menu.feed_date == day.strftime("%Y-%m-%d"),
+                Menu.time_type != "석식",
+                Menu.menu_food == menu_food,
+            )))
+            deleted_items += 1
+        elif "중식" in time_types:
+            db_session.execute(delete(Menu).where(and_(
+                Menu.restaurant_id == restaurant_id,
+                Menu.feed_date == day.strftime("%Y-%m-%d"),
+                Menu.time_type != "중식",
+                Menu.menu_food == menu_food,
+            )))
+            deleted_items += 1
+    print(f"deleted {deleted_items} items")

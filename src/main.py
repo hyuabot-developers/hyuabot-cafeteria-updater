@@ -7,11 +7,10 @@ import urllib3
 from requests.adapters import HTTPAdapter
 from requests.exceptions import ChunkedEncodingError
 from sqlalchemy import select
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from models import Restaurant
-from scripts.menu import get_menu_data
+from scripts.menu import get_menu_data, delete_duplicate
 from utils.database import get_db_engine
 
 
@@ -71,6 +70,8 @@ async def execute_script(session):
         for restaurant_id, response, day in responses
     ]
     await asyncio.gather(*job_list)
+    for restaurant_id, url, day in urls:
+        await delete_duplicate(session, restaurant_id, day)
     session.close()
 
 if __name__ == '__main__':
