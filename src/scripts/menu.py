@@ -8,13 +8,36 @@ from sqlalchemy.orm import Session
 from models import Menu
 
 
+class HashableDict:
+    """A hashable dictionary to use as a key in sets."""
+    def __init__(self, data: dict):
+        self._data = data
+        self._frozon = frozenset(sorted(self._data.items()))
+
+    def __hash__(self):
+        return hash(self._frozon)
+
+    def __eq__(self, other: 'HashableDict') -> bool:
+        if not isinstance(other, HashableDict):
+            return NotImplemented
+        return (
+            self._data['restaurant_id'] == other._data['restaurant_id'] and
+            self._data['feed_date'] == other._data['feed_date'] and
+            self._data['time_type'] == other._data['time_type'] and
+            self._data['menu_food'] == other._data['menu_food']
+        )
+
+    def to_dict(self) -> dict:
+        return dict(self._data)
+
+
 async def get_menu_data(
         db_session: Session,
         restaurant_id: int,
         response: Response,
         day: datetime.datetime,
 ) -> None:
-    menu_items: list[dict] = []
+    menu_items: list[HashableDict] = []
     soup = BeautifulSoup(response.text, "html.parser")
     for inbox in soup.find_all("div", {"class": "in-box"}):
         title = inbox.find_next("h4")
@@ -31,21 +54,23 @@ async def get_menu_data(
                 p = list_item.find_next("p", {"class": "price"})
                 if not p:
                     continue
-                menu_item = dict(
+                menu_item = HashableDict(dict(
                     restaurant_id=restaurant_id,
                     feed_date=day.strftime("%Y-%m-%d"),
                     time_type=title,
                     menu_food=str(menu).strip(),
                     menu_price=p.text.strip(),
-                )
+                ))
                 if menu_item not in menu_items:
                     menu_items.append(menu_item)
     if menu_items:
+        # Remove duplicate menu items
+        menu_set = [x.to_dict() for x in list(set(menu_items))]
         db_session.execute(delete(Menu).where(and_(
             Menu.restaurant_id == restaurant_id,
             Menu.feed_date == day.strftime("%Y-%m-%d"),
         )))
-        insert_statement = insert(Menu).values(menu_items)
+        insert_statement = insert(Menu).values(menu_set)
         db_session.execute(insert_statement)
     db_session.commit()
 
