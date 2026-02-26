@@ -17,7 +17,7 @@ class HashableDict:
     def __hash__(self):
         return hash(self._frozon)
 
-    def __eq__(self, other: 'HashableDict') -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, HashableDict):
             return NotImplemented
         return (
