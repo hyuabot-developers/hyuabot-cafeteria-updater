@@ -59,7 +59,7 @@ async def get_menu_data(
                         feed_date=day.strftime("%Y-%m-%d"),
                         time_type=title,
                         menu_food=str(menu_text).strip(),
-                        menu_price=price_text,
+                        menu_price=price_text.replace("원", "").strip()
                     ))
                     if menu_item not in menu_items:
                         menu_items.append(menu_item)
