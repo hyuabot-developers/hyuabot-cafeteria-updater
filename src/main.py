@@ -55,10 +55,10 @@ async def execute_script(session):
         for restaurant_id, url, day in urls:
             try:
                 response = request_session.get(
-                    f"{url}?p_p_id=foodView_WAR_foodportlet"
-                    f"&_foodView_WAR_foodportlet_sFoodDateYear={day.year}"
-                    f"&_foodView_WAR_foodportlet_sFoodDateMonth={day.month - 1}"
-                    f"&_foodView_WAR_foodportlet_sFoodDateDay={day.day}",
+                    f"{url}?p_p_id=kr_ac_hanyang_cafe_web_portlet_CafePortlet&p_p_lifecycle=0&p_p_state=normal"
+                    f"&p_p_mode=view"
+                    f"&_kr_ac_hanyang_cafe_web_portlet_CafePortlet_sMenuDate={day.year}%2F{day.month}%2F{day.day}"
+                    f"&_kr_ac_hanyang_cafe_web_portlet_CafePortlet_action=view",
                     verify=False,
                 )
                 response.raise_for_status()

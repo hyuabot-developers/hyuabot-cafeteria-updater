@@ -17,7 +17,7 @@ class HashableDict:
     def __hash__(self):
         return hash(self._frozon)
 
-    def __eq__(self, other: 'HashableDict') -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, HashableDict):
             return NotImplemented
         return (
@@ -39,30 +39,30 @@ async def get_menu_data(
 ) -> None:
     menu_items: list[HashableDict] = []
     soup = BeautifulSoup(response.text, "html.parser")
-    for inbox in soup.find_all("div", {"class": "in-box"}):
-        title = inbox.find_next("h4")
-        if not title:
-            continue
-        title = title.text.strip()
-        title_soup = BeautifulSoup(str(inbox), "html.parser")
-        for list_item in title_soup.find_all("li", {"class": "span3"}):
-            if list_item.find_next("h3"):
-                menu = list_item.find_next("h3")
-                if not menu:
-                    continue
-                menu = menu.text.replace("\t", "").replace("\r\n", "")
-                p = list_item.find_next("p", {"class": "price"})
-                if not p:
-                    continue
-                menu_item = HashableDict(dict(
-                    restaurant_id=restaurant_id,
-                    feed_date=day.strftime("%Y-%m-%d"),
-                    time_type=title,
-                    menu_food=str(menu).strip(),
-                    menu_price=p.text.strip(),
-                ))
-                if menu_item not in menu_items:
-                    menu_items.append(menu_item)
+    for daily in soup.find_all("div", class_="hyu-list-container-dailyView"):
+        for inbox in daily.find_all("h3", class_="hyu-element"):
+            title = inbox.get_text(strip=True)
+            if not title:
+                continue
+            container = inbox.find_next_sibling("div", class_='hyu-list-container')
+            if container:
+                items = container.find_all("div", class_="hyu-list-body-item-col menu-thumbnail")
+                for menu_item in items:
+                    detail_p = menu_item.find_next("div", class_="menu-detail").find_next("p")
+                    if not detail_p:
+                        continue
+                    menu_text = detail_p.get_text(strip=True)
+                    price_h3 = menu_item.find_next("div", class_="menu-price").find_next("h3")
+                    price_text = price_h3.get_text(strip=True) if price_h3 else ""
+                    menu_item = HashableDict(dict(
+                        restaurant_id=restaurant_id,
+                        feed_date=day.strftime("%Y-%m-%d"),
+                        time_type=title,
+                        menu_food=str(menu_text).strip(),
+                        menu_price=price_text.replace("원", "").strip()
+                    ))
+                    if menu_item not in menu_items:
+                        menu_items.append(menu_item)
     if menu_items:
         # Remove duplicate menu items
         menu_set = [x.to_dict() for x in list(set(menu_items))]
