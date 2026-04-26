@@ -88,7 +88,7 @@ async def execute_script(session):
         'numOfRows': '100',
         'dataType': 'JSON',
         'base_date': now.strftime('%Y%m%d'),
-        'base_time': now.strftime('%H00') if now.minute > 15 else f'{now.hour-1}00',
+        'base_time': now.strftime('%H00') if now.minute > 15 else f'{now.hour - 1}00',
         'nx': '57',
         'ny': '121'
     }
