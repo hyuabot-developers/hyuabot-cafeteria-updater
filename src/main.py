@@ -1,6 +1,7 @@
 import asyncio
 import os
 import ssl
+import logging
 from datetime import datetime, timedelta
 
 import pytz
@@ -52,6 +53,8 @@ async def execute_script(session):
             ))
     responses = []
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    logging.basicConfig(level=logging.INFO)
+    logging.info("Start to get menu data.")
     with requests.Session() as request_session:
         # request_session.mount("https://", HTTPSAdapter())
         for restaurant_id, url, day in urls:
@@ -74,6 +77,8 @@ async def execute_script(session):
     await asyncio.gather(*job_list)
     for restaurant_id, url, day in urls:
         await delete_duplicate(session, restaurant_id, day)
+    logging.info("Finish to get menu data.")
+    logging.info("Start to get weather data.")
     # 날씨 카테고리 검색
     notice_category_stmt = select(NoticeCategory).where(NoticeCategory.category_name == '날씨')
     notice_category = session.execute(notice_category_stmt).scalar_one_or_none()
@@ -136,6 +141,7 @@ async def execute_script(session):
     ])
     session.execute(delete_notice_stmt)
     session.execute(insert_notice_stmt)
+    logging.info("Finish to get weather data.")
     session.commit()
     session.close()
 
