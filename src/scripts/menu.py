@@ -68,7 +68,7 @@ async def get_menu_data(
         menu_set = [x.to_dict() for x in list(set(menu_items))]
         db_session.execute(delete(Menu).where(and_(
             Menu.restaurant_id == restaurant_id,
-            Menu.feed_date == day.strftime("%Y-%m-%d"),
+            Menu.feed_date == day.date(),
         )))
         insert_statement = insert(Menu).values(menu_set)
         db_session.execute(insert_statement)
@@ -82,7 +82,7 @@ async def delete_duplicate(
 ) -> None:
     menu_query = select(Menu.feed_date, Menu.time_type, Menu.menu_food).where(
         Menu.restaurant_id == restaurant_id,
-        Menu.feed_date == day.strftime("%Y-%m-%d"),
+        Menu.feed_date == day.date(),
     )
     menu_items = {}
     for feed_date, time_type, menu_food in db_session.execute(menu_query):
@@ -97,7 +97,7 @@ async def delete_duplicate(
         elif "석식" in time_types:
             db_session.execute(delete(Menu).where(and_(
                 Menu.restaurant_id == restaurant_id,
-                Menu.feed_date == day.strftime("%Y-%m-%d"),
+                Menu.feed_date == day.date(),
                 Menu.time_type != "석식",
                 Menu.menu_food == menu_food,
             )))
@@ -105,7 +105,7 @@ async def delete_duplicate(
         elif "중식" in time_types:
             db_session.execute(delete(Menu).where(and_(
                 Menu.restaurant_id == restaurant_id,
-                Menu.feed_date == day.strftime("%Y-%m-%d"),
+                Menu.feed_date == day.date(),
                 Menu.time_type != "중식",
                 Menu.menu_food == menu_food,
             )))
