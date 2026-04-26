@@ -83,7 +83,7 @@ async def execute_script(session):
     now = datetime.now(pytz.timezone('Asia/Seoul'))
     url = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst'
     params = {
-        'serviceKey': os.getenv('BUS_API_KEY'),
+        'serviceKey': os.getenv('WEATHER_API_KEY'),
         'pageNo': '1',
         'numOfRows': '100',
         'dataType': 'JSON',
@@ -93,9 +93,9 @@ async def execute_script(session):
         'ny': '121'
     }
 
-    response = requests.get(url, params=params)
-    result = response.json()
-    items = result['response']['body']['items']['item']
+    weather_response = requests.get(url, params=params)
+    weather_result = weather_response.json()
+    items = weather_result['response']['body']['items']['item']
     current_weather = {}
     for item in items:
         if item['category'] in ['PTY', 'T1H', 'RN1']:
