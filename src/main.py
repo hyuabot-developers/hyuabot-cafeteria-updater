@@ -1,18 +1,15 @@
 import asyncio
-import os
 import ssl
-import logging
 from datetime import datetime, timedelta
 
-import pytz
 import requests
 import urllib3
 from requests.adapters import HTTPAdapter
 from requests.exceptions import ChunkedEncodingError
-from sqlalchemy import select, insert, delete
+from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
-from models import Restaurant, NoticeCategory, Notice
+from models import Restaurant
 from scripts.menu import get_menu_data, delete_duplicate
 from utils.database import get_db_engine
 
@@ -53,8 +50,6 @@ async def execute_script(session):
             ))
     responses = []
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-    logging.basicConfig(level=logging.INFO)
-    logging.info("Start to get menu data.")
     with requests.Session() as request_session:
         # request_session.mount("https://", HTTPSAdapter())
         for restaurant_id, url, day in urls:
@@ -77,72 +72,6 @@ async def execute_script(session):
     await asyncio.gather(*job_list)
     for restaurant_id, url, day in urls:
         await delete_duplicate(session, restaurant_id, day)
-    logging.info("Finish to get menu data.")
-    logging.info("Start to get weather data.")
-    # 날씨 카테고리 검색
-    notice_category_stmt = select(NoticeCategory).where(NoticeCategory.category_name == '날씨')
-    notice_category = session.execute(notice_category_stmt).scalar_one_or_none()
-    if notice_category is None:
-        return
-    # 날씨 조회 API
-    now = datetime.now(pytz.timezone('Asia/Seoul'))
-    url = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst'
-    params = {
-        'serviceKey': os.getenv('WEATHER_API_KEY'),
-        'pageNo': '1',
-        'numOfRows': '100',
-        'dataType': 'JSON',
-        'base_date': now.strftime('%Y%m%d'),
-        'base_time': now.strftime('%H00') if now.minute > 15 else f'{now.hour - 1}00',
-        'nx': '57',
-        'ny': '121'
-    }
-
-    weather_response = requests.get(url, params=params)
-    weather_result = weather_response.json()
-    items = weather_result['response']['body']['items']['item']
-    current_weather = {}
-    for item in items:
-        if item['category'] in ['PTY', 'T1H', 'RN1']:
-            current_weather[item['category']] = item['obsrValue']
-    if current_weather.get('PTY') == '0':
-        weather_icon = '☀️'
-    elif current_weather.get('PTY') == '2':
-        weather_icon = '🌨️'
-    else:
-        weather_icon = '🌧️'
-    korean_weather_notice = f'[날씨] {weather_icon}/현재 온도:{current_weather["T1H"]}℃'
-    english_weather_notice = f'[Weather] {weather_icon}/Temp:{current_weather["T1H"]}℃'
-    if (
-        current_weather.get('RN1') is not None and
-        str(current_weather['RN1']).isdigit() and
-        int(current_weather['RN1']) > 0
-    ):
-        korean_weather_notice += f'/강수량:{current_weather["RN1"]}mm'
-        english_weather_notice += f'/Rain:{current_weather["RN1"]}mm'
-    delete_notice_stmt = delete(Notice).where(Notice.category_id == notice_category.category_id)
-    insert_notice_stmt = insert(Notice).values([
-        {
-            'title': korean_weather_notice,
-            'url': '',
-            'category_id': notice_category.category_id,
-            'user_id': 'admin',
-            'language': 'KOREAN',
-            'expired_at': now + timedelta(hours=1),
-        },
-        {
-            'title': english_weather_notice,
-            'url': '',
-            'category_id': notice_category.category_id,
-            'user_id': 'admin',
-            'language': 'ENGLISH',
-            'expired_at': now + timedelta(hours=1),
-        }
-    ])
-    session.execute(delete_notice_stmt)
-    session.execute(insert_notice_stmt)
-    logging.info("Finish to get weather data.")
-    session.commit()
     session.close()
 
 if __name__ == '__main__':
