@@ -1,6 +1,6 @@
 import datetime
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from requests import Response
 from sqlalchemy import select, delete, insert, and_
 from sqlalchemy.orm import Session
@@ -48,21 +48,27 @@ async def get_menu_data(
             if container:
                 items = container.find_all("div", class_="hyu-list-body-item-col menu-thumbnail")
                 for menu_item in items:
-                    detail_p = menu_item.find_next("div", class_="menu-detail").find_next("p")
-                    if not detail_p:
+                    if not isinstance(menu_item, Tag):
+                        continue
+                    detail_container = menu_item.find_next("div", class_="menu-detail")
+                    if not isinstance(detail_container, Tag):
+                        continue
+                    detail_p = detail_container.find_next("p")
+                    if not isinstance(detail_p, Tag):
                         continue
                     menu_text = detail_p.get_text(strip=True)
-                    price_h3 = menu_item.find_next("div", class_="menu-price").find_next("h3")
-                    price_text = price_h3.get_text(strip=True) if price_h3 else ""
-                    menu_item = HashableDict(dict(
+                    price_container = menu_item.find_next("div", class_="menu-price")
+                    price_h3 = price_container.find_next("h3") if isinstance(price_container, Tag) else None
+                    price_text = price_h3.get_text(strip=True) if isinstance(price_h3, Tag) else ""
+                    menu_entry = HashableDict(dict(
                         restaurant_id=restaurant_id,
                         feed_date=day.strftime("%Y-%m-%d"),
                         time_type=title,
                         menu_food=str(menu_text).strip(),
                         menu_price=price_text.replace("원", "").strip()
                     ))
-                    if menu_item not in menu_items:
-                        menu_items.append(menu_item)
+                    if menu_entry not in menu_items:
+                        menu_items.append(menu_entry)
     if menu_items:
         # Remove duplicate menu items
         menu_set = [x.to_dict() for x in list(set(menu_items))]
