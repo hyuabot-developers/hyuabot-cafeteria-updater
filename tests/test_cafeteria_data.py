@@ -4,11 +4,12 @@ from typing import Optional
 
 import pytest
 import requests
+from requests.exceptions import RequestException
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from main import HTTPSAdapter
+from main import build_request_url
 from models import BaseModel
 from models import Restaurant, Menu
 from scripts.menu import get_menu_data
@@ -44,23 +45,28 @@ class TestFetchRealtimeData:
         # Get list to fetch
         urls = []
         now = datetime.now()
-        restaurant_query = select(Restaurant.restaurant_id)
-        for restaurant_id, in session.execute(restaurant_query):
+        restaurant_query = select(Restaurant.restaurant_id, Restaurant.url)
+        for restaurant_id, restaurant_url in session.execute(restaurant_query):
+            if restaurant_url is None:
+                continue
             for day_delta in range(-5, 5):
                 day = now + timedelta(days=day_delta)
-                urls.append((restaurant_id, f"https://www.hanyang.ac.kr/web/www/re{restaurant_id}", day))
+                urls.append((restaurant_id, restaurant_url, day))
+        responses = []
         with requests.Session() as request_session:
-            request_session.mount("https://", HTTPSAdapter())
-            responses = [(restaurant_id, request_session.get(
-                f"{url}?p_p_id=foodView_WAR_foodportlet&_foodView_WAR_foodportlet_sFoodDateYear={day.year}"
-                f"&_foodView_WAR_foodportlet_sFoodDateMonth={day.month - 1}"
-                f"&_foodView_WAR_foodportlet_sFoodDateDay={day.day}",
-            ), day) for restaurant_id, url, day in urls]
+            for restaurant_id, base_url, day in urls:
+                try:
+                    request_url = build_request_url(base_url, day)
+                    response = request_session.get(request_url, verify=False)
+                    response.raise_for_status()
+                    responses.append((restaurant_id, response, day))
+                except RequestException:
+                    pass
         job_list = [get_menu_data(session, restaurant_id, response, day) for restaurant_id, response, day in responses]
         await asyncio.gather(*job_list)
 
         # Check if the data is inserted
-        menu_list = session.query(Menu).all()
+        menu_list = session.execute(select(Menu)).scalars().all()
         for menu_item in menu_list:  # type: Menu
             assert isinstance(menu_item.restaurant_id, int)
             assert isinstance(menu_item.feed_date, date)
