@@ -30,11 +30,15 @@ async def insert_cafeteria_data(db_session: Session):
         dict(restaurant_id=6, restaurant_name="제1생활관 식당", campus_id=1, latitude=0, longitude=0),
         dict(restaurant_id=7, restaurant_name="제2생활관 식당", campus_id=1, latitude=0, longitude=0),
         dict(restaurant_id=8, restaurant_name="행원파크", campus_id=1, latitude=0, longitude=0),
-        dict(restaurant_id=11, restaurant_name="교직원식당", campus_id=2, latitude=0, longitude=0),
-        dict(restaurant_id=12, restaurant_name="학생식당", campus_id=2, latitude=0, longitude=0),
-        dict(restaurant_id=13, restaurant_name="창의인재원식당", campus_id=2, latitude=0, longitude=0),
+        dict(restaurant_id=11, restaurant_name="교직원식당", campus_id=2, latitude=0, longitude=0,
+             url="https://life.hanyang.ac.kr/theme/pages/facilities/detail.php?id=2"),
+        dict(restaurant_id=12, restaurant_name="학생식당", campus_id=2, latitude=0, longitude=0,
+             url="https://life.hanyang.ac.kr/theme/pages/facilities/detail.php?id=1"),
+        dict(restaurant_id=13, restaurant_name="창의인재원식당", campus_id=2, latitude=0, longitude=0,
+             url="https://life.hanyang.ac.kr/theme/pages/facilities/detail.php?id=4"),
         dict(restaurant_id=14, restaurant_name="푸드코트", campus_id=2, latitude=0, longitude=0),
-        dict(restaurant_id=15, restaurant_name="창업보육센터", campus_id=2, latitude=0, longitude=0),
+        dict(restaurant_id=15, restaurant_name="창업보육센터", campus_id=2, latitude=0, longitude=0,
+             url="https://life.hanyang.ac.kr/theme/pages/facilities/detail.php?id=3"),
     ]
     insert_statement = insert(Restaurant).values(supported_restaurants)
     insert_statement = insert_statement.on_conflict_do_update(
@@ -44,6 +48,7 @@ async def insert_cafeteria_data(db_session: Session):
             campus_id=insert_statement.excluded.campus_id,
             latitude=insert_statement.excluded.latitude,
             longitude=insert_statement.excluded.longitude,
+            url=insert_statement.excluded.url,
         ),
     )
     db_session.execute(insert_statement)

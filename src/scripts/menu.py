@@ -39,42 +39,43 @@ async def get_menu_data(
 ) -> None:
     menu_items: list[HashableDict] = []
     soup = BeautifulSoup(response.text, "html.parser")
-    for daily in soup.find_all("div", class_="hyu-list-container-dailyView"):
-        for inbox in daily.find_all("h3", class_="hyu-element"):
-            title = inbox.get_text(strip=True)
-            if not title:
+    for section in soup.find_all("section", class_="menu-section"):
+        for group in section.find_all("div", class_="menu-group"):
+            title_el = group.find("div", class_="menu-group__title")
+            if not title_el:
                 continue
-            container = inbox.find_next_sibling("div", class_='hyu-list-container')
-            if container:
-                items = container.find_all("div", class_="hyu-list-body-item-col menu-thumbnail")
-                for menu_item in items:
-                    if not isinstance(menu_item, Tag):
-                        continue
-                    detail_container = menu_item.find_next("div", class_="menu-detail")
-                    if not isinstance(detail_container, Tag):
-                        continue
-                    detail_p = detail_container.find_next("p")
-                    if not isinstance(detail_p, Tag):
-                        continue
-                    menu_text = detail_p.get_text(strip=True)
-                    price_container = menu_item.find_next("div", class_="menu-price")
-                    price_h3 = price_container.find_next("h3") if isinstance(price_container, Tag) else None
-                    price_text = price_h3.get_text(strip=True) if isinstance(price_h3, Tag) else ""
-                    menu_entry = HashableDict(dict(
-                        restaurant_id=restaurant_id,
-                        feed_date=day.strftime("%Y-%m-%d"),
-                        time_type=title,
-                        menu_food=str(menu_text).strip(),
-                        menu_price=price_text.replace("원", "").strip()
-                    ))
-                    if menu_entry not in menu_items:
-                        menu_items.append(menu_entry)
+            time_type = title_el.get_text(strip=True)
+            if not time_type:
+                continue
+            menu_list = group.find("div", class_="menu-list")
+            if not menu_list:
+                continue
+            for item in menu_list.find_all("div", class_="menu-item"):
+                if not isinstance(item, Tag):
+                    continue
+                name_el = item.find("div", class_="menu-item__name")
+                if not name_el:
+                    continue
+                menu_food = name_el.get_text(strip=True)
+                if not menu_food:
+                    continue
+                price_el = item.find("span", class_="menu-item__price")
+                price_text = price_el.get_text(strip=True) if price_el else ""
+                price_text = price_text.replace("원", "").strip()
+                menu_entry = HashableDict(dict(
+                    restaurant_id=restaurant_id,
+                    feed_date=day.date(),
+                    time_type=time_type,
+                    menu_food=menu_food,
+                    menu_price=price_text,
+                ))
+                if menu_entry not in menu_items:
+                    menu_items.append(menu_entry)
     if menu_items:
-        # Remove duplicate menu items
         menu_set = [x.to_dict() for x in list(set(menu_items))]
         db_session.execute(delete(Menu).where(and_(
             Menu.restaurant_id == restaurant_id,
-            Menu.feed_date == day.strftime("%Y-%m-%d"),
+            Menu.feed_date == day.date(),
         )))
         insert_statement = insert(Menu).values(menu_set)
         db_session.execute(insert_statement)
@@ -88,7 +89,7 @@ async def delete_duplicate(
 ) -> None:
     menu_query = select(Menu.feed_date, Menu.time_type, Menu.menu_food).where(
         Menu.restaurant_id == restaurant_id,
-        Menu.feed_date == day.strftime("%Y-%m-%d"),
+        Menu.feed_date == day.date(),
     )
     menu_items = {}
     for feed_date, time_type, menu_food in db_session.execute(menu_query):
@@ -103,7 +104,7 @@ async def delete_duplicate(
         elif "석식" in time_types:
             db_session.execute(delete(Menu).where(and_(
                 Menu.restaurant_id == restaurant_id,
-                Menu.feed_date == day.strftime("%Y-%m-%d"),
+                Menu.feed_date == day.date(),
                 Menu.time_type != "석식",
                 Menu.menu_food == menu_food,
             )))
@@ -111,7 +112,7 @@ async def delete_duplicate(
         elif "중식" in time_types:
             db_session.execute(delete(Menu).where(and_(
                 Menu.restaurant_id == restaurant_id,
-                Menu.feed_date == day.strftime("%Y-%m-%d"),
+                Menu.feed_date == day.date(),
                 Menu.time_type != "중식",
                 Menu.menu_food == menu_food,
             )))
