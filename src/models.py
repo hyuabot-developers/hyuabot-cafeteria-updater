@@ -1,4 +1,5 @@
 import datetime
+from typing import Optional
 
 from sqlalchemy import ForeignKey, String, Double, PrimaryKeyConstraint
 from sqlalchemy.orm import DeclarativeBase, mapped_column, Mapped
@@ -19,6 +20,7 @@ class Restaurant(BaseModel):
     campus_id: Mapped[int] = mapped_column(ForeignKey('campus.campus_id'), nullable=False)
     restaurant_id: Mapped[int] = mapped_column(primary_key=True)
     restaurant_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     latitude: Mapped[float] = mapped_column(Double, nullable=False)
     longitude: Mapped[float] = mapped_column(Double, nullable=False)
 
