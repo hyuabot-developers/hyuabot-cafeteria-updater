@@ -59,6 +59,15 @@ async def get_menu_data(
                 menu_food = name_el.get_text(strip=True)
                 if not menu_food:
                     continue
+                desc_el = item.find("div", class_="menu-item__desc")
+                if desc_el:
+                    side_dishes = [
+                        t.strip()
+                        for t in desc_el.get_text(separator="\n").split("\n")
+                        if t.strip()
+                    ]
+                    if side_dishes:
+                        menu_food = menu_food + ", " + ", ".join(side_dishes)
                 price_el = item.find("span", class_="menu-item__price")
                 price_text = price_el.get_text(strip=True) if price_el else ""
                 price_text = price_text.replace("원", "").strip()
