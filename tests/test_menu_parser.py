@@ -101,6 +101,71 @@ DUPLICATE_HTML = """
 """
 
 
+SIDE_DISCH_HTML = """
+<section class="menu-section">
+  <div class="menu-group">
+    <div class="menu-group__title">중식</div>
+    <div class="menu-list">
+      <div class="menu-item">
+        <div class="menu-item__name">장터해장국</div>
+        <div class="menu-item__desc">비엔나야채볶음<br />그린샐러드</div>
+        <span class="menu-item__price">6,500원</span>
+      </div>
+      <div class="menu-item">
+        <div class="menu-item__name">나물비빔밥</div>
+        <div class="menu-item__desc">춘권튀김<br />배추김치</div>
+        <span class="menu-item__price">5,500원</span>
+      </div>
+    </div>
+  </div>
+</section>
+"""
+
+SIDE_DISCH_EMPTY_DESC_HTML = """
+<section class="menu-section">
+  <div class="menu-group">
+    <div class="menu-group__title">조식</div>
+    <div class="menu-list">
+      <div class="menu-item">
+        <div class="menu-item__name">쌀밥</div>
+        <div class="menu-item__desc"></div>
+        <span class="menu-item__price">5,000원</span>
+      </div>
+    </div>
+  </div>
+</section>
+"""
+
+SIDE_DISCH_NO_DESC_HTML = """
+<section class="menu-section">
+  <div class="menu-group">
+    <div class="menu-group__title">중식</div>
+    <div class="menu-list">
+      <div class="menu-item">
+        <div class="menu-item__name">돈까스</div>
+        <span class="menu-item__price">7,000원</span>
+      </div>
+    </div>
+  </div>
+</section>
+"""
+
+SIDE_DISCH_DUPLICATE_HTML = """
+<section class="menu-section">
+  <div class="menu-group">
+    <div class="menu-group__title">중식</div>
+    <div class="menu-list">
+      <div class="menu-item">
+        <div class="menu-item__name">비빔밥</div>
+        <div class="menu-item__desc">김치<br />김치</div>
+        <span class="menu-item__price">7,000원</span>
+      </div>
+    </div>
+  </div>
+</section>
+"""
+
+
 class FakeResponse:
     def __init__(self, html: str):
         self.text = html
@@ -246,6 +311,52 @@ class TestGetMenuData:
             for m in menus:
                 assert m.restaurant_id == rid
             db_session.close()
+
+    def test_side_dishes_appended_to_menu_food(self):
+        db_session = _make_session()
+        response = FakeResponse(SIDE_DISCH_HTML)
+        day = datetime(2026, 9, 14)
+        asyncio.run(get_menu_data(db_session, 11, response, day))
+
+        menus = _get_all_menus(db_session)
+        assert len(menus) == 2
+        foods = {m.menu_food for m in menus}
+        assert "장터해장국, 비엔나야채볶음, 그린샐러드" in foods
+        assert "나물비빔밥, 춘권튀김, 배추김치" in foods
+        db_session.close()
+
+    def test_side_dishes_empty_desc_no_suffix(self):
+        db_session = _make_session()
+        response = FakeResponse(SIDE_DISCH_EMPTY_DESC_HTML)
+        day = datetime(2026, 9, 14)
+        asyncio.run(get_menu_data(db_session, 11, response, day))
+
+        menus = _get_all_menus(db_session)
+        assert len(menus) == 1
+        assert menus[0].menu_food == "쌀밥"
+        db_session.close()
+
+    def test_side_dishes_no_desc_element(self):
+        db_session = _make_session()
+        response = FakeResponse(SIDE_DISCH_NO_DESC_HTML)
+        day = datetime(2026, 9, 14)
+        asyncio.run(get_menu_data(db_session, 11, response, day))
+
+        menus = _get_all_menus(db_session)
+        assert len(menus) == 1
+        assert menus[0].menu_food == "돈까스"
+        db_session.close()
+
+    def test_side_dishes_duplicate_in_desc_preserved(self):
+        db_session = _make_session()
+        response = FakeResponse(SIDE_DISCH_DUPLICATE_HTML)
+        day = datetime(2026, 9, 14)
+        asyncio.run(get_menu_data(db_session, 11, response, day))
+
+        menus = _get_all_menus(db_session)
+        assert len(menus) == 1
+        assert menus[0].menu_food == "비빔밥, 김치, 김치"
+        db_session.close()
 
     def test_replaces_existing_data_for_same_date(self):
         db_session = _make_session()
