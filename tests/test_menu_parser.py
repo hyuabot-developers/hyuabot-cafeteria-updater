@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, date
+from pathlib import Path
 from unittest.mock import patch, MagicMock, AsyncMock
 
 from requests.exceptions import ConnectionError
@@ -11,159 +12,98 @@ from models import BaseModel, Menu, Restaurant, Campus
 from scripts.menu import get_menu_data
 
 
-NORMAL_HTML = """
-<section class="menu-section">
-  <div class="menu-group">
-    <div class="menu-group__title">조식</div>
-    <div class="menu-list">
-      <div class="menu-item">
-        <div class="menu-item__name">쌀밥</div>
-        <span class="menu-item__price">6,500원</span>
-      </div>
-      <div class="menu-item">
-        <div class="menu-item__name">김치찌개</div>
-        <span class="menu-item__price">6,500원</span>
-      </div>
-    </div>
-  </div>
-  <div class="menu-group">
-    <div class="menu-group__title">중식</div>
-    <div class="menu-list">
-      <div class="menu-item">
-        <div class="menu-item__name">비빔밥</div>
-        <span class="menu-item__price">7,000원</span>
-      </div>
-    </div>
-  </div>
-  <div class="menu-group">
-    <div class="menu-group__title">석식</div>
-    <div class="menu-list">
-      <div class="menu-item">
-        <div class="menu-item__name">돈까스</div>
-        <span class="menu-item__price">7,500원</span>
-      </div>
-    </div>
-  </div>
-</section>
-"""
-
-EMPTY_HTML = """
-<section class="menu-section">
-  <div class="fac-empty-msg--center">오늘의 메뉴가 없습니다.</div>
-</section>
-"""
-
-NO_PRICE_HTML = """
-<section class="menu-section">
-  <div class="menu-group">
-    <div class="menu-group__title">중식</div>
-    <div class="menu-list">
-      <div class="menu-item">
-        <div class="menu-item__name">오늘의 스프</div>
-      </div>
-    </div>
-  </div>
-</section>
-"""
-
-MALFORMED_HTML = """
-<section class="menu-section">
-  <div class="menu-group">
-    <div class="menu-group__title">중식</div>
-    <div class="menu-list">
-      <div class="menu-item">
-        <div class="menu-item__name"></div>
-        <span class="menu-item__price">5,000원</span>
-      </div>
-      <div class="menu-item">
-      </div>
-    </div>
-  </div>
-</section>
-"""
-
-DUPLICATE_HTML = """
-<section class="menu-section">
-  <div class="menu-group">
-    <div class="menu-group__title">중식</div>
-    <div class="menu-list">
-      <div class="menu-item">
-        <div class="menu-item__name">비빔밥</div>
-        <span class="menu-item__price">7,000원</span>
-      </div>
-      <div class="menu-item">
-        <div class="menu-item__name">비빔밥</div>
-        <span class="menu-item__price">7,000원</span>
-      </div>
-    </div>
-  </div>
-</section>
-"""
+WEEK_DATES = ["09.13", "09.14", "09.15", "09.16", "09.17", "09.18", "09.19"]
+EMPTY_CELL = '<span class="weekly-empty-dash">—</span>'
+REAL_PAGE_TABLE = Path(__file__).parent / "fixtures" / "weekly_menu_table.html"
 
 
-SIDE_DISCH_HTML = """
-<section class="menu-section">
-  <div class="menu-group">
-    <div class="menu-group__title">중식</div>
-    <div class="menu-list">
-      <div class="menu-item">
-        <div class="menu-item__name">장터해장국</div>
-        <div class="menu-item__desc">비엔나야채볶음<br />그린샐러드</div>
-        <span class="menu-item__price">6,500원</span>
-      </div>
-      <div class="menu-item">
-        <div class="menu-item__name">나물비빔밥</div>
-        <div class="menu-item__desc">춘권튀김<br />배추김치</div>
-        <span class="menu-item__price">5,500원</span>
-      </div>
-    </div>
-  </div>
-</section>
-"""
+def _item(name: str, price: str = "", desc: str | None = None) -> str:
+    html = f'<div class="weekly-text-item"><div class="weekly-item-name">{name}</div>'
+    if price:
+        html += f'<div class="weekly-item-price">{price}</div>'
+    if desc is not None:
+        html += f'<div class="weekly-item-desc">{desc}</div>'
+    return html + "</div>"
 
-SIDE_DISCH_EMPTY_DESC_HTML = """
-<section class="menu-section">
-  <div class="menu-group">
-    <div class="menu-group__title">조식</div>
-    <div class="menu-list">
-      <div class="menu-item">
-        <div class="menu-item__name">쌀밥</div>
-        <div class="menu-item__desc"></div>
-        <span class="menu-item__price">5,000원</span>
-      </div>
-    </div>
-  </div>
-</section>
-"""
 
-SIDE_DISCH_NO_DESC_HTML = """
-<section class="menu-section">
-  <div class="menu-group">
-    <div class="menu-group__title">중식</div>
-    <div class="menu-list">
-      <div class="menu-item">
-        <div class="menu-item__name">돈까스</div>
-        <span class="menu-item__price">7,000원</span>
-      </div>
-    </div>
-  </div>
-</section>
-"""
+def _same_every_day(cell: str) -> list[str]:
+    return [cell] * len(WEEK_DATES)
 
-SIDE_DISCH_DUPLICATE_HTML = """
-<section class="menu-section">
-  <div class="menu-group">
-    <div class="menu-group__title">중식</div>
-    <div class="menu-list">
-      <div class="menu-item">
-        <div class="menu-item__name">비빔밥</div>
-        <div class="menu-item__desc">김치<br />김치</div>
-        <span class="menu-item__price">7,000원</span>
-      </div>
-    </div>
-  </div>
-</section>
-"""
+
+def _weekly_html(meals: dict[str, list[str]], dates: list[str] = WEEK_DATES) -> str:
+    """Build a weekly-table page. `meals` maps a meal label to one cell body per day column."""
+    header_cells = "".join(
+        '<th class="th-day"><span class="th-day-name">-</span>'
+        f'<span class="th-day-date">{d}</span></th>'
+        for d in dates
+    )
+    body_rows = "".join(
+        f'<tr><th class="td-meal-label">{label}</th>'
+        + "".join(f'<td class="td-menu-cell">{cell or EMPTY_CELL}</td>' for cell in cells)
+        + "</tr>"
+        for label, cells in meals.items()
+    )
+    return (
+        '<table class="weekly-table"><thead><tr><th class="th-meal">구분</th>'
+        f"{header_cells}</tr></thead><tbody>{body_rows}</tbody></table>"
+    )
+
+
+NORMAL_HTML = _weekly_html({
+    "조식": _same_every_day(_item("쌀밥", "6,500원") + _item("김치찌개", "6,500원")),
+    "중식": _same_every_day(_item("비빔밥", "7,000원")),
+    "석식": _same_every_day(_item("돈까스", "7,500원")),
+})
+
+EMPTY_HTML = '<div class="fac-empty-msg--center">오늘의 메뉴가 없습니다.</div>'
+
+EMPTY_CELLS_HTML = _weekly_html({
+    "조식": _same_every_day(""),
+    "중식": _same_every_day(""),
+})
+
+NO_PRICE_HTML = _weekly_html({"중식": _same_every_day(_item("오늘의 스프"))})
+
+MALFORMED_HTML = _weekly_html({
+    "중식": _same_every_day(
+        _item("", "5,000원")
+        + '<div class="weekly-text-item"><div class="weekly-item-price">4,000원</div></div>'
+    ),
+})
+
+DUPLICATE_HTML = _weekly_html({
+    "중식": _same_every_day(_item("비빔밥", "7,000원") + _item("비빔밥", "7,000원")),
+})
+
+SIDE_DISCH_HTML = _weekly_html({
+    "중식": _same_every_day(
+        _item("장터해장국", "6,500원", "비엔나야채볶음/그린샐러드")
+        + _item("나물비빔밥", "5,500원", "춘권튀김/배추김치")
+    ),
+})
+
+SIDE_DISCH_EMPTY_DESC_HTML = _weekly_html({
+    "조식": _same_every_day(_item("쌀밥", "6,500원", " ")),
+})
+
+SIDE_DISCH_NO_DESC_HTML = _weekly_html({
+    "중식": _same_every_day(_item("돈까스", "7,000원")),
+})
+
+SIDE_DISCH_DUPLICATE_HTML = _weekly_html({
+    "중식": _same_every_day(_item("비빔밥", "7,000원", "김치/김치")),
+})
+
+# Each day column holds a different dish so tests can tell which column was stored.
+PER_DAY_HTML = _weekly_html({
+    "중식": [_item(f"메뉴{index}") for index in range(len(WEEK_DATES))],
+})
+
+YEAR_END_DATES = ["12.30", "12.31", "01.01", "01.02", "01.03", "01.04", "01.05"]
+YEAR_END_HTML = _weekly_html(
+    {"중식": [_item(f"메뉴{index}") for index in range(len(YEAR_END_DATES))]},
+    dates=YEAR_END_DATES,
+)
 
 
 class FakeResponse:
@@ -256,6 +196,16 @@ class TestGetMenuData:
         assert len(menus) == 0
         db_session.close()
 
+    def test_empty_cells_no_insert(self):
+        db_session = _make_session()
+        response = FakeResponse(EMPTY_CELLS_HTML)
+        day = datetime(2026, 9, 14)
+        asyncio.run(get_menu_data(db_session, 11, response, day))
+
+        menus = _get_all_menus(db_session)
+        assert len(menus) == 0
+        db_session.close()
+
     def test_no_price(self):
         db_session = _make_session()
         response = FakeResponse(NO_PRICE_HTML)
@@ -296,8 +246,54 @@ class TestGetMenuData:
         asyncio.run(get_menu_data(db_session, 12, response, day))
 
         menus = _get_all_menus(db_session)
+        assert len(menus) == 4
         for m in menus:
             assert m.feed_date == date(2026, 9, 15)
+        db_session.close()
+
+    def test_only_requested_day_column_is_stored(self):
+        db_session = _make_session()
+        response = FakeResponse(PER_DAY_HTML)
+        day = datetime(2026, 9, 16)
+        asyncio.run(get_menu_data(db_session, 11, response, day))
+
+        menus = _get_all_menus(db_session)
+        assert [m.menu_food for m in menus] == ['메뉴3']
+        assert menus[0].feed_date == date(2026, 9, 16)
+        db_session.close()
+
+    def test_day_outside_week_inserts_nothing(self):
+        db_session = _make_session()
+        response = FakeResponse(NORMAL_HTML)
+        day = datetime(2026, 9, 20)
+        asyncio.run(get_menu_data(db_session, 11, response, day))
+
+        menus = _get_all_menus(db_session)
+        assert len(menus) == 0
+        db_session.close()
+
+    def test_year_is_inferred_across_new_year(self):
+        db_session = _make_session()
+        response = FakeResponse(YEAR_END_HTML)
+        day = datetime(2027, 1, 1)
+        asyncio.run(get_menu_data(db_session, 11, response, day))
+
+        menus = _get_all_menus(db_session)
+        assert [m.menu_food for m in menus] == ['메뉴2']
+        assert menus[0].feed_date == date(2027, 1, 1)
+        db_session.close()
+
+    def test_parses_real_weekly_page_snapshot(self):
+        db_session = _make_session()
+        response = FakeResponse(REAL_PAGE_TABLE.read_text(encoding="utf-8"))
+        day = datetime(2026, 10, 20)
+        asyncio.run(get_menu_data(db_session, 1, response, day))
+
+        menus = _get_all_menus(db_session)
+        assert menus
+        assert {m.feed_date for m in menus} == {date(2026, 10, 20)}
+        assert {m.time_type for m in menus} <= {'조식', '중식', '석식'}
+        assert any(m.menu_food.startswith('베이컨갈릭볶음밥&계란후라이') for m in menus)
         db_session.close()
 
     def test_different_restaurant_ids(self):

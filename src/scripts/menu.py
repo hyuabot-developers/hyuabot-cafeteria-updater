@@ -31,6 +31,67 @@ class HashableDict:
         return dict(self._data)
 
 
+WEEKLY_TABLE_CLASS = "weekly-table"
+
+
+def _header_date(header: Tag, reference: datetime.date) -> datetime.date | None:
+    """Turn a weekly-table day header such as '10.18' into a full date near the reference."""
+    date_el = header.find("span", class_="th-day-date")
+    if date_el is None:
+        return None
+    try:
+        month_text, day_text = date_el.get_text(strip=True).split(".")
+        candidate = datetime.date(reference.year, int(month_text), int(day_text))
+    except ValueError:
+        return None
+    # The header has no year, so pick the one that places the date closest to the reference.
+    delta_days = (candidate - reference).days
+    if delta_days > 180:
+        candidate = candidate.replace(year=candidate.year - 1)
+    elif delta_days < -180:
+        candidate = candidate.replace(year=candidate.year + 1)
+    return candidate
+
+
+def _find_day_column(table: Tag, target: datetime.date) -> int | None:
+    for index, header in enumerate(table.find_all("th", class_="th-day")):
+        if _header_date(header, target) == target:
+            return index
+    return None
+
+
+def _parse_weekly_item(
+        item: Tag,
+        restaurant_id: int,
+        day: datetime.datetime,
+        time_type: str,
+) -> HashableDict | None:
+    name_el = item.find("div", class_="weekly-item-name")
+    if name_el is None:
+        return None
+    menu_food = name_el.get_text(strip=True)
+    if not menu_food:
+        return None
+    desc_el = item.find("div", class_="weekly-item-desc")
+    if desc_el is not None:
+        side_dishes = [
+            side.strip()
+            for side in desc_el.get_text().split("/")
+            if side.strip()
+        ]
+        if side_dishes:
+            menu_food = ", ".join([menu_food, *side_dishes])
+    price_el = item.find("div", class_="weekly-item-price")
+    price_text = price_el.get_text(strip=True).replace("원", "").strip() if price_el else ""
+    return HashableDict(dict(
+        restaurant_id=restaurant_id,
+        feed_date=day.date(),
+        time_type=time_type,
+        menu_food=menu_food,
+        menu_price=price_text,
+    ))
+
+
 async def get_menu_data(
         db_session: Session,
         restaurant_id: int,
@@ -39,46 +100,23 @@ async def get_menu_data(
 ) -> None:
     menu_items: list[HashableDict] = []
     soup = BeautifulSoup(response.text, "html.parser")
-    for section in soup.find_all("section", class_="menu-section"):
-        for group in section.find_all("div", class_="menu-group"):
-            title_el = group.find("div", class_="menu-group__title")
-            if not title_el:
+    table = soup.find("table", class_=WEEKLY_TABLE_CLASS)
+    column = _find_day_column(table, day.date()) if isinstance(table, Tag) else None
+    if isinstance(table, Tag) and column is not None:
+        # The page shows a whole week; only the column for the requested day is stored.
+        for row in table.find_all("tr"):
+            label_el = row.find("th", class_="td-meal-label")
+            if label_el is None:
                 continue
-            time_type = title_el.get_text(strip=True)
+            time_type = label_el.get_text(strip=True)
             if not time_type:
                 continue
-            menu_list = group.find("div", class_="menu-list")
-            if not menu_list:
+            cells = row.find_all("td", class_="td-menu-cell")
+            if column >= len(cells):
                 continue
-            for item in menu_list.find_all("div", class_="menu-item"):
-                if not isinstance(item, Tag):
-                    continue
-                name_el = item.find("div", class_="menu-item__name")
-                if not name_el:
-                    continue
-                menu_food = name_el.get_text(strip=True)
-                if not menu_food:
-                    continue
-                desc_el = item.find("div", class_="menu-item__desc")
-                if desc_el:
-                    side_dishes = [
-                        t.strip()
-                        for t in desc_el.get_text(separator="\n").split("\n")
-                        if t.strip()
-                    ]
-                    if side_dishes:
-                        menu_food = menu_food + ", " + ", ".join(side_dishes)
-                price_el = item.find("span", class_="menu-item__price")
-                price_text = price_el.get_text(strip=True) if price_el else ""
-                price_text = price_text.replace("원", "").strip()
-                menu_entry = HashableDict(dict(
-                    restaurant_id=restaurant_id,
-                    feed_date=day.date(),
-                    time_type=time_type,
-                    menu_food=menu_food,
-                    menu_price=price_text,
-                ))
-                if menu_entry not in menu_items:
+            for item in cells[column].find_all("div", class_="weekly-text-item"):
+                menu_entry = _parse_weekly_item(item, restaurant_id, day, time_type)
+                if menu_entry is not None and menu_entry not in menu_items:
                     menu_items.append(menu_entry)
     if menu_items:
         menu_set = [x.to_dict() for x in list(set(menu_items))]
